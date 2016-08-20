@@ -1,7 +1,7 @@
 #
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12 FATAL_ERROR)
 #
-PROJECT(libarchive C)
+PROJECT(libarchive C CXX)
 #
 SET(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/build/cmake")
 if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
@@ -1685,3 +1685,4 @@ add_subdirectory(libarchive)
 add_subdirectory(cat)
 add_subdirectory(tar)
 add_subdirectory(cpio)
+add_subdirectory(tcuntar)
