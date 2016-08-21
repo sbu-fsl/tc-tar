@@ -41,6 +41,8 @@ int main(int argc, char **argv) {
     struct tc_iovec *input_file = (tc_iovec*) malloc(sizeof(struct tc_iovec));
     std::vector<struct tc_attrs> directories;
     std::vector<struct tc_iovec> writes;
+    std::vector<const char *> symlink_src_paths;
+    std::vector<const char *> symlink_dst_paths;
 
     readlink("/proc/self/exe", exe_path, PATH_MAX);
     snprintf(tc_config_path, PATH_MAX,
@@ -96,7 +98,11 @@ int main(int argc, char **argv) {
             iovec.length = size;
             iovec.data = (char*)buff;
             writes.push_back(iovec);
-
+        } else if (S_ISLNK(type)) {
+            symlink_src_paths.push_back(strdup(archive_entry_symlink(entry)));
+            symlink_dst_paths.push_back(strdup(archive_entry_pathname(entry)));
+        } else {
+            printf("unhandled type: %s\n", archive_entry_pathname(entry));
         }
     }
 
@@ -105,12 +111,30 @@ int main(int argc, char **argv) {
         printf("mkdirv: %s (%s)\n", strerror(res.err_no), directories[res.index].file.path);
         return res.err_no;
     }
+    for (auto& dir : directories) {
+        free((char*) dir.file.path);
+    }
+
+    res = tc_symlinkv(symlink_src_paths.data(), symlink_dst_paths.data(),
+            symlink_src_paths.size(), false);
+    if (!tc_okay(res)) {
+        printf("symlinkv: %s (%s)\n", strerror(res.err_no), symlink_src_paths[res.index]);
+        return res.err_no;
+    }
+
+    for (auto& s : symlink_src_paths) {
+        free((char*)s);
+    }
+    for (auto& s : symlink_dst_paths) {
+        free((char*)s);
+    }
 
     res = tc_writev(writes.data(), writes.size(), false);
     if (!tc_okay(res)) {
         printf("writev: %s\n", strerror(res.err_no));
         return res.err_no;
     }
+
 
     for (auto& iovec : writes) {
         free((char*)iovec.file.path);
