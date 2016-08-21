@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <vector>
+#include <libgen.h>
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -25,7 +26,12 @@ ssize_t tc_archive_read(struct archive *a, void *client_data, const void **buff)
     return input_file->length;
 }
 
+void deinit(int status, void *context) {
+    tc_deinit(context);
+}
+
 int main(int argc, char **argv) {
+    char exe_path[PATH_MAX];
     char tc_config_path[PATH_MAX];
     void *context;
     struct archive *a;
@@ -36,14 +42,19 @@ int main(int argc, char **argv) {
     std::vector<struct tc_attrs> directories;
     std::vector<struct tc_iovec> writes;
 
-    get_tc_config_file (tc_config_path, PATH_MAX);
+    readlink("/proc/self/exe", exe_path, PATH_MAX);
+    snprintf(tc_config_path, PATH_MAX,
+                 "%s/../../../../config/tc.ganesha.conf", dirname(exe_path));
     fprintf (stderr, "using config file: %s\n", tc_config_path);
 
-    context = tc_init (NULL, DEFAULT_LOG_FILE, 77);
+    context = tc_init (tc_config_path, DEFAULT_LOG_FILE, 77);
     if (!context)
     {
         printf("initializing tc failed\n");
         return 1;
+    }
+    if (on_exit(deinit, (void*)context) != 0) {
+        fprintf(stderr, "warning: failed to register tc_deinit() on exit");
     }
 
     const int read_size = 1024*1024;
@@ -91,7 +102,7 @@ int main(int argc, char **argv) {
 
     res = tc_mkdirv(directories.data(), directories.size(), false);
     if (!tc_okay(res)) {
-        printf("mkdirv: %s\n", strerror(res.err_no));
+        printf("mkdirv: %s (%s)\n", strerror(res.err_no), directories[res.index].file.path);
         return res.err_no;
     }
 
