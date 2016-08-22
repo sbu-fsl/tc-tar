@@ -106,20 +106,25 @@ int main(int argc, char **argv) {
         }
     }
 
-    res = tc_mkdirv(directories.data(), directories.size(), false);
-    if (!tc_okay(res)) {
-        printf("mkdirv: %s (%s)\n", strerror(res.err_no), directories[res.index].file.path);
-        return res.err_no;
+    if (directories.size() > 0) {
+        res = tc_mkdirv(directories.data(), directories.size(), false);
+        if (!tc_okay(res)) {
+            printf("mkdirv: %s (%s)\n", strerror(res.err_no), directories[res.index].file.path);
+            return res.err_no;
+        }
     }
+
     for (auto& dir : directories) {
         free((char*) dir.file.path);
     }
 
-    res = tc_symlinkv(symlink_src_paths.data(), symlink_dst_paths.data(),
-            symlink_src_paths.size(), false);
-    if (!tc_okay(res)) {
-        printf("symlinkv: %s (%s)\n", strerror(res.err_no), symlink_src_paths[res.index]);
-        return res.err_no;
+    if (symlink_src_paths.size() > 0) {
+        res = tc_symlinkv(symlink_src_paths.data(), symlink_dst_paths.data(),
+                symlink_src_paths.size(), false);
+        if (!tc_okay(res)) {
+            printf("symlinkv: %s (%s)\n", strerror(res.err_no), symlink_src_paths[res.index]);
+            return res.err_no;
+        }
     }
 
     for (auto& s : symlink_src_paths) {
@@ -129,10 +134,12 @@ int main(int argc, char **argv) {
         free((char*)s);
     }
 
-    res = tc_writev(writes.data(), writes.size(), false);
-    if (!tc_okay(res)) {
-        printf("writev: %s\n", strerror(res.err_no));
-        return res.err_no;
+    if (writes.size() > 0) {
+        res = tc_writev(writes.data(), writes.size(), false);
+        if (!tc_okay(res)) {
+            printf("writev: %s\n", strerror(res.err_no));
+            return res.err_no;
+        }
     }
 
 
