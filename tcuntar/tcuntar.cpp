@@ -30,6 +30,79 @@ void deinit(int status, void *context) {
     tc_deinit(context);
 }
 
+tc_res performTCIO(std::vector<struct tc_attrs>& directories,
+                 std::vector<struct tc_iovec>& writes,
+                 std::vector<const char *>& symlink_src_paths,
+                 std::vector<const char *>& symlink_dst_paths,
+                 int min_count) {
+    tc_res res = {0, 0};
+
+    auto make_dirs = [](std::vector<struct tc_attrs>& directories) {
+        tc_res res = {0, 0};
+        if (directories.size() > 0) {
+            res = tc_mkdirv(directories.data(), directories.size(), false);
+            if (!tc_okay(res)) {
+                printf("mkdirv: %s (%s)\n", strerror(res.err_no), directories[res.index].file.path);
+                return res;
+            }
+            for (auto& dir : directories) {
+                free((char*) dir.file.path);
+            }
+            directories.clear();
+        }
+        return res;
+    };
+
+    if (directories.size() >= min_count) {
+        res = make_dirs(directories);
+        if (!tc_okay(res)) {
+            return res;
+        }
+    }
+
+
+    if (symlink_src_paths.size() >= min_count) {
+        res = make_dirs(directories);
+        if (!tc_okay(res)) {
+            return res;
+        }
+        res = tc_symlinkv(symlink_src_paths.data(), symlink_dst_paths.data(),
+                symlink_src_paths.size(), false);
+        if (!tc_okay(res)) {
+            printf("symlinkv: %s (%s)\n", strerror(res.err_no), symlink_src_paths[res.index]);
+            return res;
+        }
+        for (auto& s : symlink_src_paths) {
+            free((char*)s);
+        }
+        for (auto& s : symlink_dst_paths) {
+            free((char*)s);
+        }
+        symlink_src_paths.clear();
+        symlink_dst_paths.clear();
+    }
+
+
+    if (writes.size() >= min_count) {
+        res = make_dirs(directories);
+        if (!tc_okay(res)) {
+            return res;
+        }
+        res = tc_writev(writes.data(), writes.size(), false);
+        if (!tc_okay(res)) {
+            printf("writev: %s\n", strerror(res.err_no));
+            return res;
+        }
+        for (auto& iovec : writes) {
+            free((char*)iovec.file.path);
+            free(iovec.data);
+        }
+        writes.clear();
+    }
+
+    return res;
+}
+
 int main(int argc, char **argv) {
     char exe_path[PATH_MAX];
     char tc_config_path[PATH_MAX];
@@ -104,50 +177,17 @@ int main(int argc, char **argv) {
         } else {
             printf("unhandled type: %s\n", archive_entry_pathname(entry));
         }
-    }
 
-    if (directories.size() > 0) {
-        res = tc_mkdirv(directories.data(), directories.size(), false);
+        res = performTCIO(directories, writes, symlink_src_paths, symlink_dst_paths, 255);
         if (!tc_okay(res)) {
-            printf("mkdirv: %s (%s)\n", strerror(res.err_no), directories[res.index].file.path);
             return res.err_no;
         }
     }
 
-    for (auto& dir : directories) {
-        free((char*) dir.file.path);
+    res = performTCIO(directories, writes, symlink_src_paths, symlink_dst_paths, -1);
+    if (!tc_okay(res)) {
+        return res.err_no;
     }
-
-    if (symlink_src_paths.size() > 0) {
-        res = tc_symlinkv(symlink_src_paths.data(), symlink_dst_paths.data(),
-                symlink_src_paths.size(), false);
-        if (!tc_okay(res)) {
-            printf("symlinkv: %s (%s)\n", strerror(res.err_no), symlink_src_paths[res.index]);
-            return res.err_no;
-        }
-    }
-
-    for (auto& s : symlink_src_paths) {
-        free((char*)s);
-    }
-    for (auto& s : symlink_dst_paths) {
-        free((char*)s);
-    }
-
-    if (writes.size() > 0) {
-        res = tc_writev(writes.data(), writes.size(), false);
-        if (!tc_okay(res)) {
-            printf("writev: %s\n", strerror(res.err_no));
-            return res.err_no;
-        }
-    }
-
-
-    for (auto& iovec : writes) {
-        free((char*)iovec.file.path);
-        free(iovec.data);
-    }
-
 
     r = archive_read_free(a);
     if (r != ARCHIVE_OK) {
