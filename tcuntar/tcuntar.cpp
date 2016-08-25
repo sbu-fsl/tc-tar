@@ -184,7 +184,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    res = performTCIO(directories, writes, symlink_src_paths, symlink_dst_paths, -1);
+    res = performTCIO(directories, writes, symlink_src_paths, symlink_dst_paths, 0);
     if (!tc_okay(res)) {
         return res.err_no;
     }
