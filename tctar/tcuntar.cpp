@@ -9,7 +9,7 @@
 #include "tc_helper.h"
 #include "path_utils.h"
 
-#define DEFAULT_LOG_FILE "/tmp/libarchive-tcminitar.log"
+#define DEFAULT_LOG_FILE "/tmp/libarchive-tcuntar.log"
 
 ssize_t tc_archive_read(struct archive *a, void *client_data, const void **buff)
 {
