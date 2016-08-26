@@ -5,6 +5,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 # How to build bsdtar
 #
 ############################################
+SET(tctar_SOURCES
+  tctar.cpp
+)
+
 SET(tcuntar_SOURCES
   tcuntar.cpp
 )
@@ -48,5 +52,7 @@ SET(TC_ADDITIONAL_LIBS
 )
 
 INCLUDE_DIRECTORIES(../../../tc_client/include)
+ADD_EXECUTABLE(tctar ${tctar_SOURCES})
+TARGET_LINK_LIBRARIES(tctar  ${LIB_TC} ${TC_ADDITIONAL_LIBS} ${ADDITIONAL_LIBS} archive)
 ADD_EXECUTABLE(tcuntar ${tcuntar_SOURCES})
 TARGET_LINK_LIBRARIES(tcuntar  ${LIB_TC} ${TC_ADDITIONAL_LIBS} ${ADDITIONAL_LIBS} archive)
