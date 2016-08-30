@@ -11,21 +11,52 @@
 
 #define DEFAULT_LOG_FILE "/tmp/libarchive-tctar.log"
 
+struct write_cbarg {
+    struct tc_iovec output_file;
+    std::vector<struct tc_iovec> writes;
+};
+
 ssize_t tc_archive_write(struct archive *a, void *client_data, const void *buffer, size_t length)
 {
-    struct tc_iovec *output_file = (struct tc_iovec*) client_data;
+    struct write_cbarg *cbarg = (struct write_cbarg*) client_data;
+    struct tc_iovec *output_file = &cbarg->output_file;
 
-    output_file->data = (char*) buffer;
+    char *data = (char*) malloc(length);
+    memcpy(data, buffer, length);
+
+    output_file->data = data;
     output_file->length = length;
 
+    cbarg->writes.push_back(*output_file);
 
-    tc_res res = tc_writev(output_file, 1, false);
-    if (!tc_okay(res)) {
-        printf("writev: %s\n", strerror(res.err_no));
-        return res.err_no;
+    if (cbarg->writes.size() >= 255) {
+        tc_res res = tc_writev(cbarg->writes.data(), cbarg->writes.size(), false);
+        if (!tc_okay(res)) {
+            printf("writev: %s\n", strerror(res.err_no));
+            return -1;
+        }
+        for (auto& write : cbarg->writes) {
+            free(write.data);
+        }
+        cbarg->writes.clear();
     }
-    output_file->offset += output_file->length;
-    return output_file->length;
+
+    output_file->offset += length;
+    return length;
+}
+
+int tc_archive_close(struct archive *a, void *client_data) {
+    struct write_cbarg *cbarg = (struct write_cbarg*) client_data;
+
+    if (cbarg->writes.size() > 0) {
+        tc_res res = tc_writev(cbarg->writes.data(), cbarg->writes.size(), false);
+        if (!tc_okay(res)) {
+            printf("writev: %s\n", strerror(res.err_no));
+            return ARCHIVE_FATAL;
+        }
+        cbarg->writes.clear();
+    }
+    return ARCHIVE_OK;
 }
 
 void deinit(int status, void *context) {
@@ -119,6 +150,7 @@ bool listdir_callback(const struct tc_attrs *attr, const char *dir, void *arg) {
     }
 
     if (!tc_okay(read_files_and_write_to_archive(cbarg->a, cbarg->files, cbarg->symlinks, 255))) {
+        printf("read_files_and_write_to_archive failed\n");
         return false;
     }
 
@@ -134,7 +166,7 @@ int main(int argc, char **argv) {
     int r;
     tc_res res;
     struct cbarg *cbarg = (struct cbarg *) malloc(sizeof(struct cbarg));
-    struct tc_iovec *output_file = (struct tc_iovec *) malloc(sizeof(struct tc_iovec));
+    struct write_cbarg *write_cbarg = (struct write_cbarg *) malloc(sizeof(struct write_cbarg));
 
     readlink("/proc/self/exe", exe_path, PATH_MAX);
     snprintf(tc_config_path, PATH_MAX,
@@ -151,14 +183,15 @@ int main(int argc, char **argv) {
         fprintf(stderr, "warning: failed to register tc_deinit() on exit");
     }
 
-    output_file->file = tc_file_from_path(argv[1]);
-    output_file->offset = 0;
-    output_file->is_creation = true;
+    write_cbarg->output_file.file = tc_file_from_path(argv[1]);
+    write_cbarg->output_file.offset = 0;
+    write_cbarg->output_file.is_creation = true;
+    write_cbarg->writes = {};
 
     a = archive_write_new();
     archive_write_add_filter_xz(a);
     archive_write_set_format_ustar(a);
-    r = archive_write_open(a, output_file, NULL, tc_archive_write, NULL);
+    r = archive_write_open(a, write_cbarg, NULL, tc_archive_write, tc_archive_close);
     if (r != ARCHIVE_OK) {
         printf("error, could not open archive");
         return 1;
@@ -180,7 +213,7 @@ int main(int argc, char **argv) {
     }
 
     r = archive_write_free(a);
-    free(output_file);
+    free(write_cbarg);
     free(cbarg);
     if (r != ARCHIVE_OK) {
         printf("error, could not free archive");
