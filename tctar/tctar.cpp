@@ -183,14 +183,19 @@ int main(int argc, char **argv) {
         fprintf(stderr, "warning: failed to register tc_deinit() on exit");
     }
 
+    a = archive_write_new();
+    archive_write_set_format_ustar(a);
+    if (strcmp(argv[1], "--no-compress") == 0) {
+        argv++;
+    } else {
+        archive_write_add_filter_xz(a);
+    }
+
     write_cbarg->output_file.file = tc_file_from_path(argv[1]);
     write_cbarg->output_file.offset = 0;
     write_cbarg->output_file.is_creation = true;
     write_cbarg->writes = {};
 
-    a = archive_write_new();
-    archive_write_add_filter_xz(a);
-    archive_write_set_format_ustar(a);
     r = archive_write_open(a, write_cbarg, NULL, tc_archive_write, tc_archive_close);
     if (r != ARCHIVE_OK) {
         printf("error, could not open archive");
