@@ -37,6 +37,7 @@ SET(LIB_TC
   ${CMAKE_CURRENT_LIST_DIR}/../../../tc_client/${TC_BUILD_TYPE}/support/libtc_helper.a
   ${CMAKE_CURRENT_LIST_DIR}/../../../tc_client/${TC_BUILD_TYPE}/cidr/libcidr.a
   ${CMAKE_CURRENT_LIST_DIR}/../../../tc_client/${TC_BUILD_TYPE}/FSAL/FSAL_PSEUDO/libfsalpseudo.a
+  ${CMAKE_CURRENT_LIST_DIR}/../../../tc_client/${TC_BUILD_TYPE}/nfs4/libfsaltcnfs.a
   ${CMAKE_CURRENT_LIST_DIR}/../../../tc_client/${TC_BUILD_TYPE}/NodeList/libNodeList.a
   ${CMAKE_CURRENT_LIST_DIR}/../../../tc_client/${TC_BUILD_TYPE}/config_parsing/libconfig_parsing.a
   ${CMAKE_CURRENT_LIST_DIR}/../../../tc_client/${TC_BUILD_TYPE}/libntirpc/src/libntirpc.a
